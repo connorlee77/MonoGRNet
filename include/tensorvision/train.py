@@ -226,49 +226,49 @@ def run_training(hypes, modules, tv_graph, tv_sess, start_step=0):
         lr = solver.get_learning_rate(hypes, step)
         feed_dict = {tv_graph['learning_rate']: lr, 
                      hypes['solver']['regression_weights']: regression_weights}
-        if step % display_iter:
-            sess.run([tv_graph['train_op']], feed_dict=feed_dict)
+        # if step % display_iter:
+        #     sess.run([tv_graph['train_op']], feed_dict=feed_dict)
 
-        # Write the summaries and print an overview fairly often.
-        elif step % display_iter == 0:
-            # Print status to stdout.
-            _, loss_value, training_loss, eval_results = sess.run([tv_graph['train_op'],
-                                      tv_graph['losses']['total_loss'], tv_graph['losses'], 
-                                      eval_ops],
-                                     feed_dict=feed_dict)
-            _print_training_status(hypes, step, loss_value, start_time, lr)    
-            _print_eval_dict(eval_names, eval_results, prefix='   (raw)')
+        # # Write the summaries and print an overview fairly often.
+        # elif step % display_iter == 0:
+        #     # Print status to stdout.
+        #     _, loss_value, training_loss, eval_results = sess.run([tv_graph['train_op'],
+        #                               tv_graph['losses']['total_loss'], tv_graph['losses'], 
+        #                               eval_ops],
+        #                              feed_dict=feed_dict)
+        #     _print_training_status(hypes, step, loss_value, start_time, lr)    
+        #     _print_eval_dict(eval_names, eval_results, prefix='   (raw)')
 
-            dict_smoother.update_weights(eval_results)
-            smoothed_results = dict_smoother.get_weights()
+        #     dict_smoother.update_weights(eval_results)
+        #     smoothed_results = dict_smoother.get_weights()
 
-            _print_eval_dict(eval_names, smoothed_results, prefix='(smooth)')
+        #     _print_eval_dict(eval_names, smoothed_results, prefix='(smooth)')
              
-            #logging.info('Regression Weights: Depth: %.2f, Location: %.2f, Corner: %.2f'%(regression_weights[0], \
-            #              regression_weights[1], regression_weights[2]))
-            # Reset timer
-            start_time = time.time()
+        #     #logging.info('Regression Weights: Depth: %.2f, Location: %.2f, Corner: %.2f'%(regression_weights[0], \
+        #     #              regression_weights[1], regression_weights[2]))
+        #     # Reset timer
+        #     start_time = time.time()
         
-        if step % write_iter == 0:
-            # write values to summary
-            if FLAGS.summary:
-                summary_str = sess.run(tv_sess['summary_op'],
-                                       feed_dict=feed_dict)
-                summary_writer.add_summary(summary_str, global_step=step)
-            summary.value.add(tag='training/total_loss',
-                              simple_value=float(loss_value))
-            summary.value.add(tag='training/learning_rate',
-                              simple_value=lr)
-            summary_writer.add_summary(summary, step)
-            # Convert numpy types to simple types.
-            eval_results = np.array(eval_results)
-            eval_results = eval_results.tolist()
-            eval_dict = zip(eval_names, eval_results)
-            _write_eval_dict_to_summary(eval_dict, 'Eval/raw',
-                                        summary_writer, step)
-            eval_dict = zip(eval_names, smoothed_results)
-            _write_eval_dict_to_summary(eval_dict, 'Eval/smooth',
-                                        summary_writer, step)
+        # if step % write_iter == 0:
+        #     # write values to summary
+        #     if FLAGS.summary:
+        #         summary_str = sess.run(tv_sess['summary_op'],
+        #                                feed_dict=feed_dict)
+        #         summary_writer.add_summary(summary_str, global_step=step)
+        #     summary.value.add(tag='training/total_loss',
+        #                       simple_value=float(loss_value))
+        #     summary.value.add(tag='training/learning_rate',
+        #                       simple_value=lr)
+        #     summary_writer.add_summary(summary, step)
+        #     # Convert numpy types to simple types.
+        #     eval_results = np.array(eval_results)
+        #     eval_results = eval_results.tolist()
+        #     eval_dict = zip(eval_names, eval_results)
+        #     _write_eval_dict_to_summary(eval_dict, 'Eval/raw',
+        #                                 summary_writer, step)
+        #     eval_dict = zip(eval_names, smoothed_results)
+        #     _write_eval_dict_to_summary(eval_dict, 'Eval/smooth',
+        #                                 summary_writer, step)
 
         # Do a evaluation and print the current state
         if (step) % eval_iter == 0 \
@@ -278,7 +278,7 @@ def run_training(hypes, modules, tv_graph, tv_sess, start_step=0):
             logging.info('Running Evaluation Script.')
       
             eval_dict, images = modules['eval'].evaluate(
-                hypes, sess, tv_graph['image_pl'], tv_graph['calib_pl'], tv_graph['xy_scale_pl'],  tv_graph['inf_out'])
+                hypes, sess, tv_graph['image_pl'], tv_graph['calib_pl'], tv_graph['xy_scale_pl'],  tv_graph['inf_out'], tv_graph['encoder_out'])
 
             _write_images_to_summary(images, summary_writer, step)
             logging.info("Evaluation Finished. All results will be saved to:")
@@ -306,7 +306,7 @@ def run_training(hypes, modules, tv_graph, tv_sess, start_step=0):
 
             # Reset timer
             start_time = time.time()
-
+        break
         # Save a checkpoint periodically.
      
         if (step) % save_iter == 0 and step > 0 or \
@@ -381,12 +381,13 @@ def do_training(hypes):
             xy_scale = tf.placeholder(tf.float32, shape=[1, hypes['grid_height'], hypes['grid_width'], 2])
             image = tf.expand_dims(image_pl, 0)
             image.set_shape([1, 384, 1248, 3])
-            inf_out = core.build_inference_graph(hypes, modules,
+            inf_out, encoder_out = core.build_inference_graph(hypes, modules,
                                                  image, calib, xy_scale)
             tv_graph['image_pl'] = image_pl
             tv_graph['inf_out'] = inf_out
             tv_graph['calib_pl'] = calib
             tv_graph['xy_scale_pl'] = xy_scale
+            tv_graph['encoder_out'] = encoder_out
 
 
         all_variables = tf.get_collection_ref(tf.GraphKeys.GLOBAL_VARIABLES)

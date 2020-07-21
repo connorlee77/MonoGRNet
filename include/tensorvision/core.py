@@ -138,7 +138,7 @@ def build_inference_graph(hypes, modules, image, calib_pl, xy_scale_pl):
         labels = (0, 0, 0, calib_pl, 0, xy_scale_pl)
         decoded_logits = modules['objective'].decoder(hypes, logits, labels, 
                                                       train=False)
-    return decoded_logits
+    return decoded_logits, logits
 
 
 def start_tv_session(hypes):
